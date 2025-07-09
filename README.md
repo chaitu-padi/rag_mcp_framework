@@ -73,7 +73,7 @@ Workflows can be saved/loaded by unique workflow ID. All configuration can be ma
 
 ## Usage
 
-### Streamlit UI
+### Streamlit UI (Work in Progress)
 
 Run the UI:
 
@@ -92,6 +92,13 @@ Features:
 
 For automation or batch runs:
 
+For testing, run as below : By default it will take the config.yaml
+```sh
+python data_ingest.py 
+python llm_infer.py 
+```
+
+For future state run : Configurations will be taken from workflow_id.yaml
 ```sh
 python data_ingest.py --workflow_id <id>
 python llm_infer.py --workflow_id <id> --question "..."
