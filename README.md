@@ -167,7 +167,8 @@ MCP in RAG offers powerful real-time, scalable, and extensible context retrieval
 ## Directory Structure
 ```
 ├── app.py                # Streamlit UI
-├── main.py               # CLI entry point
+├── data_ingest.py        # CLI entry point for data ingestion
+├── llm_infer.py          # CLI entry point for llm inference
 ├── config/
 │   └── config.yaml       # Configuration file
 ├── datasources/          # Data source modules
