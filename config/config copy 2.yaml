@@ -1,0 +1,85 @@
+mcp:
+pipeline:
+
+# =====================
+# 1. DATA INGESTION CONFIGURATION (Source → Embedding → VectorDB)
+# =====================
+data_ingestion:
+  datasource:
+    type: oracle
+    params: 
+      user: "system"
+      password: "PULL FROM ENV:ORACLE_PASS"
+      host: "localhost"
+      port: 1521
+      service_name: "FREEPDB1"
+      table: "FIN_ANA_DATA"
+      # Optionally, add fetch_size, query, etc.
+  vectordb:
+    type: chromadb
+    params:
+      persist_directory: "./chromadb"
+  embedding:
+    # Supported: openai, sentence-transformers (recommended for Oracle data)
+    type: sentence-transformers
+    params:
+      model: "all-MiniLM-L6-v2"  # Good for tabular/text data from Oracle
+      chunk_size: 512
+      api_key: ""  # Not required for sentence-transformers
+      max_batch_size: 5461  # Maximum batch size for embedding generation (configurable)
+
+# =====================
+# 2. LLM INFERENCE CONFIGURATION (Context from MCP or VectorDB)
+# =====================
+llm_inference:
+  llm:
+    type: openai
+    params:
+      model: "gpt-4o-mini"
+      max_tokens: 512
+      temperature: 0.7
+      top_p: 1.0
+      api_key: "PULL FROM ENV:OPENAI_API_KEY"
+  # RAG pipeline query configuration
+  query:
+    top_k: 1000  # Number of top documents to use for context (default: 10 if not set)
+  mcp:
+    enabled: true
+    fallback_to_vectordb: false  # If true, fallback to vector DB if MCP context is empty. If false, do not fallback.
+    tools:
+      - name: "oracle_query"
+        description: "Query Oracle DB using Model Context Protocol"
+        datasource: "oracle"
+        params:
+          user: "system"
+          password: "PULL FROM ENV:ORACLE_PASS"
+          host: "localhost"
+          port: 1521
+          service_name: "FREEPDB1"
+          query: "SELECT * FROM FIN_ANA_DATA FETCH FIRST 5 ROWS ONLY"
+          fetch_size: 100
+  prompts:
+    default: |
+      Context:
+      {context}
+      
+      Question: {question}
+      Answer:
+    concise: |
+      Given the following context, answer concisely:
+      {context}
+      Q: {question}
+      A:
+    variables:
+      tool: MCP
+      user_role: analyst
+
+# Optional: pipeline steps for reference
+pipeline:
+  type: rag
+  steps:
+    - datasource
+    - embedding
+    - vectordb
+    - mcp
+    - llm
