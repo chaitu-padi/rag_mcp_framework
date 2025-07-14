@@ -1,4 +1,3 @@
-
 # Modular RAG Framework (MCP-Ready)
 
 This project is a modular Retrieval-Augmented Generation (RAG) framework designed for extensibility, configurability, and robust workflow management. It supports multiple data sources (including Oracle/MCP), vector databases, embedding models, and LLMs. The framework is suitable for both experimentation and production use.
@@ -9,17 +8,20 @@ This project is a modular Retrieval-Augmented Generation (RAG) framework designe
 
 - **Modular architecture**: Easily add new data sources, embedding models, LLMs, or vector DBs by implementing the appropriate base class and registering in the UI.
 - **Batch embedding**: Efficient, configurable batch processing for embeddings with batch size control.
-- **Oracle/MCP support**: Native integration for Oracle and Model Context Protocol (MCP) context retrieval, with fallback to vector DB.
+- **Oracle/MCP support**: Native integration for Oracle and Model Context Protocol (MCP) context retrieval, with fallback to vector DB. **Oracle credentials can be securely managed via environment variables.**
 - **Streamlit UI**: User-friendly interface for workflow management, configuration, and running RAG pipelines. UI supports:
   - Viewing, creating, and editing workflows
   - Saving/loading workflows by unique workflow ID
   - Editing all pipeline parameters (data source, vector DB, embedding, LLM, prompt variables)
+  - Secure handling of Oracle passwords: password is never shown in the UI, and can be resolved from environment variables for ingestion and inference
   - Running data ingestion, LLM inference, or both together
   - Viewing all existing workflows
+  - Viewing execution logs in a dedicated right-side panel
 - **Workflow management**: Save, load, and list workflows by unique workflow ID. Workflows are stored as YAML configs under `config/`.
 - **Configurable via YAML/UI**: All parameters are grouped under `data_ingestion` and `llm_inference` in the config. The UI and YAML are always in sync.
 - **Separation of concerns**: Decoupled scripts for data ingestion (`data_ingest.py`) and LLM inference (`llm_infer.py`).
-- **Logging and documentation**: Clear logs and code comments for maintainability.
+- **Logging and documentation**: Clear logs and code comments for maintainability. All pipeline execution logs are shown in the UI for debugging.
+- **Environment variable support**: API keys and Oracle passwords can be set as environment variables and referenced in the config using `PULL FROM ENV:VARNAME`.
 
 ---
 
@@ -52,7 +54,9 @@ Configuration is managed via YAML and the Streamlit UI. The config is split into
 data_ingestion:
   datasource:
     type: CSV | RDBMS | Hive | Oracle
-    params: {...}
+    params:
+      user: ...
+      password: ... # Can be 'PULL FROM ENV:VARNAME' for secure env var usage
   vectordb:
     type: ChromaDB
     params: {...}
@@ -65,9 +69,21 @@ llm_inference:
     params: {...}
   prompt_vars:
     ...
+  mcp:
+    enabled: true
+    fallback_to_vectordb: false
+    tools:
+      - name: oracle_query
+        datasource: oracle
+        params:
+          user: ...
+          password: ... # Can be 'PULL FROM ENV:VARNAME'
+          ...existing code...
+  query:
+    top_k: 10
 ```
 
-Workflows can be saved/loaded by unique workflow ID. All configuration can be managed via the UI or YAML. The UI always reflects the current config and allows editing all parameters.
+Workflows can be saved/loaded by unique workflow ID. All configuration can be managed via the UI or YAML. The UI always reflects the current config and allows editing all parameters. **Sensitive fields like Oracle password are never shown in the UI, but are resolved from environment variables when running the pipeline.**
 
 ---
 
@@ -85,8 +101,10 @@ Features:
 - View, create, and edit workflows
 - Save/load workflows by ID
 - Configure all pipeline parameters (data source, vector DB, embedding, LLM, prompt variables)
+- Securely manage Oracle credentials via environment variables
 - Run data ingestion, LLM inference, or both together
 - View all existing workflows
+- View execution logs in a dedicated right-side panel for debugging
 
 ### CLI Scripts
 
@@ -117,10 +135,12 @@ Add new data sources, embedding models, LLMs, or vector DBs by implementing the 
 **Pros:**
 - Direct context retrieval from Oracle/MCP for high accuracy
 - Fallback to vector DB for flexibility
+- Secure credential management via environment variables
 
 **Cons:**
 - MCP/Oracle setup may require additional infrastructure
 - May be slower than pure vector DB for some queries
+- Requires careful credential management
 
 ---
 
@@ -130,44 +150,12 @@ MIT
 
 ---
 
-## Pros and Cons of Adding MCP (Model Context Protocol) in RAG
-
-### Pros
-- **Real-Time Data Retrieval:**  
-  MCP enables the RAG pipeline to fetch the most up-to-date context directly from the source (e.g., Oracle DB) at query time, ensuring answers are always based on the latest data.
-- **Scalability:**  
-  By retrieving only the relevant context for each query, MCP avoids the need to embed and store the entire dataset, making the system more scalable for large and dynamic data sources.
-- **Reduced Maintenance Overhead:**  
-  No need to re-embed or re-index the entire dataset when the source data changes, as MCP always queries live data.
-- **Extensibility:**  
-  MCP allows easy integration of new data sources and custom retrieval logic by defining new MCP tools, making the framework adaptable to various enterprise needs.
-- **Configurable and Modular:**  
-  MCP tools and parameters are fully configurable via YAML, supporting flexible workflows and rapid experimentation.
-
-### Cons
-- **Potential Latency:**  
-  Querying live data sources (like databases) at inference time can introduce additional latency compared to retrieving pre-embedded vectors from a vector DB.
-- **Complexity:**  
-  Implementing and maintaining MCP tools for different data sources adds complexity to the codebase and configuration.
-- **Dependency on Source Availability:**  
-  The RAG pipeline’s ability to answer questions depends on the availability and performance of the underlying data source (e.g., Oracle DB uptime).
-- **Limited by Source Query Performance:**  
-  The speed and efficiency of context retrieval are constrained by the performance of the source system and the efficiency of the queries defined in MCP tools.
-- **Security and Access Control:**  
-  Direct database access at inference time may require careful management of credentials, permissions, and audit trails.
-
----
-
-**Summary:**  
-MCP in RAG offers powerful real-time, scalable, and extensible context retrieval, but introduces trade-offs in latency, complexity, and dependency on source systems. It is best suited for scenarios where data freshness and flexibility outweigh the need for ultra-low-latency responses.
-
----
-
 ## Troubleshooting
-- Ensure all required API keys are set (either in the UI, config, or as environment variables).
+- Ensure all required API keys and Oracle passwords are set (either in the UI, config, or as environment variables).
 - If you encounter version or schema errors with ChromaDB or NumPy, follow the compatibility instructions in `requirements.txt`.
 - For large datasets, consider context window management or chunking strategies (see `rag/rag_pipeline.py`).
-- If you add new data sources or embedding types, ensure they are imported and handled in `main.py`.
+- If you add new data sources or embedding types, ensure they are imported and handled in `app.py`.
+- If Oracle connection fails, check that the password is set in the environment and referenced as `PULL FROM ENV:VARNAME` in the config.
 
 ---
 
