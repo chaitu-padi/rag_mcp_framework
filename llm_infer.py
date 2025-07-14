@@ -114,6 +114,7 @@ def main():
     )
     query_config = llm_inf_cfg.get("query", {})
     default_top_k = query_config.get("top_k", 10)
+    print(**extra_vars)
     print("LLM inference ready. Type your question (or 'exit'):")
     while True:
         user_query = input("Ask a question (or 'exit'): ")
